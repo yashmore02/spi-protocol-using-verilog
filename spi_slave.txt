@@ -1,0 +1,77 @@
+module  spi_slave(
+  input wire [5:0] mosi,
+  output reg [5:0] miso,
+  input wire ss_en,
+  input wire sclk
+);
+  
+ // reg[5:0] s_data;
+  reg[2:0] next_state;
+  reg[3:0] count;
+  //reg[5:0] received_data;
+  reg[5:0] m_data;
+  reg reset;
+  
+  parameter IDLE = 3'b000;
+  parameter RECEIVE_DATA = 001;
+  parameter MASTER = 3'b010;
+  parameter LEFT_SHIFT = 3'b100;
+  
+  
+  
+  
+  always @(posedge sclk ) begin
+  
+   if(reset)begin
+   m_data <=6'b0;
+   count <= 0;
+   end else begin
+    
+    case(next_state)
+      IDLE:begin
+       case(ss_en)
+         1:next_state <= MASTER;
+         0:next_state <= RECEIVE_DATA;
+       endcase
+     end
+      
+      RECEIVE_DATA:begin
+        if(ss_en == 0)begin
+          next_state <= RECEIVE_DATA;
+          m_data <= mosi;
+        end else begin
+          next_state <= MASTER; //this is redundant
+        end
+      end
+          
+          
+      MASTER : begin
+        if(ss_en == 0)begin
+          miso[5:0] <= {miso[5:1], m_data[5]};
+          if(count <= 4'd6) begin
+                next_state <= LEFT_SHIFT;
+              end else begin
+                next_state <= IDLE;
+              end
+        end
+      end
+      
+      
+      LEFT_SHIFT: begin
+        miso <= m_data[5];
+        miso <= miso << 1;
+        m_data <= m_data << 1;
+        count <= count + 4'd1;
+        m_data <= {m_data[4:0],1'b0};
+        if(count <= 4'd5) begin
+          next_state <= MASTER; 
+        end else begin
+          next_state <= IDLE;
+        end
+      end
+    endcase
+  end
+  end
+endmodule
+
+

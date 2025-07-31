@@ -1,0 +1,80 @@
+
+
+module tb_spi_slave;
+
+  // Testbench signals
+  reg [5:0] mosi;
+  wire [5:0] miso;
+  reg ss_en;
+  reg sclk;
+  reg reset;
+
+  // Counter for test progress
+  integer i;
+
+  // Instantiate the SPI slave module
+  spi_slave uut (
+    .mosi(mosi),
+    .miso(miso),
+    .ss_en(ss_en),
+    .sclk(sclk)
+  );
+
+  // Generate clock signal
+  initial begin
+    sclk = 0;
+    forever #5 sclk = ~sclk; // Clock period of 10ns (50MHz)
+  end
+
+  // Test procedure
+  initial begin
+    // Initialize inputs
+    reset = 1;
+    ss_en = 1;  // Start with ss_en high (inactive)
+    mosi = 6'b000000;
+
+    // Apply reset
+    #10;
+    reset = 0;
+
+    // Test 1: Sending data over MOSI
+    ss_en = 0; // Enable the slave (ss_en low)
+    mosi = 6'b101010; // Send a test pattern
+    #20;  // Wait a few clock cycles
+
+    // Monitor MISO output and check shifting behavior
+    for (i = 0; i < 6; i = i + 1) begin
+      #10;
+      mosi = mosi << 1; // Shift the test data to simulate sending from the master
+    end
+
+    // Disable slave after data transfer
+    #10;
+    ss_en = 1;
+
+    // Test 2: Another pattern
+    #10;
+    ss_en = 0;
+    mosi = 6'b110011; // New pattern for testing
+    #20;
+
+    for (i = 0; i < 6; i = i + 1) begin
+      #10;
+      mosi = mosi << 1;
+    end
+
+    // Disable slave and end the test
+    #10;
+    ss_en = 1;
+
+    // Finish simulation
+    #50;
+    $finish;
+  end
+
+  // Monitor MISO output for debugging
+  initial begin
+    $monitor("Time=%0d, sclk=%b, ss_en=%b, mosi=%b, miso=%b,", $time, sclk, ss_en, mosi, miso);
+  end
+
+endmodule
